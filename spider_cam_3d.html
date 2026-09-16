@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider Cam 3D — Simulasi Interaktif</title>
+    <meta name="description" content="Simulasi interaktif 3D Spider Cam dengan kontrol real-time dan visualisasi kabel dinamis.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            overflow: hidden;
+            background-color: #0a0a1a;
+            font-family: 'Inter', system-ui, sans-serif;
+            color: #e0e0e0;
+        }
+
+        /* ── Canvas ── */
+        canvas { display: block; }
+
+        /* ── Glassmorphism Panel ── */
+        .glass {
+            background: rgba(10, 14, 28, 0.55);
+            backdrop-filter: blur(24px) saturate(1.4);
+            -webkit-backdrop-filter: blur(24px) saturate(1.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+
+        /* ── Control Panel (top-left) ── */
+        #control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            padding: 24px;
+            pointer-events: none;
+            z-index: 10;
+            animation: slideInLeft 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+
+        @keyframes slideInLeft {
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        #control-panel h2 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #00ffcc, #00aaff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #control-panel .subtitle {
+            font-size: 11px;
+            color: rgba(255,255,255,0.35);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 18px;
+        }
+
+        .control-section {
+            margin-bottom: 14px;
+        }
+
+        .control-section .label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 6px;
+        }
+
+        .control-section p {
+            font-size: 13px;
+            line-height: 1.7;
+            color: rgba(255,255,255,0.65);
+        }
+
+        kbd {
+            display: inline-block;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #00ffcc;
+            min-width: 24px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: all 0.15s ease;
+        }
+
+        kbd.active {
+            background: rgba(0, 255, 204, 0.2);
+            border-color: rgba(0, 255, 204, 0.5);
+            box-shadow: 0 0 12px rgba(0, 255, 204, 0.25);
+            transform: scale(1.05);
+        }
+
+        .key-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .key-row .axis-label {
+            font-family: 'JetBrains Mono', monospace;
+            color: rgba(0, 255, 204, 0.6);
+            font-size: 11px;
+            min-width: 70px;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+            margin: 16px 0;
+        }
+
+        /* ── Telemetry Panel (top-right) ── */
+        #telemetry-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            padding: 24px;
+            pointer-events: none;
+            z-index: 10;
+            animation: slideInRight 0.8s 0.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            opacity: 0;
+            transform: translateX(30px);
+        }
+
+        @keyframes slideInRight {
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        #telemetry-panel h3 {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 16px;
+        }
+
+        .coord-display {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .coord-box {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 10px 8px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .coord-box.active {
+            border-color: rgba(0, 255, 204, 0.3);
+            background: rgba(0, 255, 204, 0.05);
+        }
+
+        .coord-box .axis {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .coord-box .axis.x { color: #ff6b8a; }
+        .coord-box .axis.y { color: #6bff8a; }
+        .coord-box .axis.z { color: #6b8aff; }
+
+        .coord-box .value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .cable-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .cable-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .cable-item .cable-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .cable-item .cable-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .cable-item:nth-child(1) .cable-dot { color: #ff6b8a; background: #ff6b8a; }
+        .cable-item:nth-child(2) .cable-dot { color: #ffd66b; background: #ffd66b; }
+        .cable-item:nth-child(3) .cable-dot { color: #6bff8a; background: #6bff8a; }
+        .cable-item:nth-child(4) .cable-dot { color: #6b8aff; background: #6b8aff; }
+
+        .cable-item .cable-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .cable-item .cable-unit {
+            font-size: 10px;
+            color: rgba(255,255,255,0.3);
+            margin-left: 3px;
+        }
+
+        /* ── Bottom Status Bar ── */
+        #status-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(30px);
+            padding: 10px 24px;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            animation: slideUp 0.8s 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            opacity: 0;
+        }
+
+        @keyframes slideUp {
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #00ffcc;
+            box-shadow: 0 0 8px #00ffcc;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Loading Screen ── */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: #0a0a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loader-ring {
+            width: 48px;
+            height: 48px;
+            border: 2px solid rgba(0, 255, 204, 0.1);
+            border-top-color: #00ffcc;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            font-size: 12px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.3);
+        }
+
+        /* ── Mini-map (bottom-left) ── */
+        #minimap {
+            position: absolute;
+            bottom: 70px;
+            left: 20px;
+            width: 140px;
+            height: 140px;
+            padding: 10px;
+            pointer-events: none;
+            z-index: 10;
+            animation: slideInLeft 0.8s 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+
+        #minimap canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+        }
+
+        #minimap .minimap-label {
+            text-align: center;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.25);
+            margin-top: 6px;
+        }
+    </style>
+
+    <!-- Three.js core + addons from unpkg (single reliable source) -->
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Shaders -->
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <!-- Post-processing: EffectComposer defines THREE.Pass, ShaderPass extends it -->
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader-ring"></div>
+        <div class="loader-text">Memuat Simulasi</div>
+    </div>
+
+    <!-- Control Panel (Left) -->
+    <div id="control-panel" class="glass">
+        <h2>Spider Cam 3D</h2>
+        <div class="subtitle">Simulasi Kontrol Real-Time</div>
+
+        <div class="control-section">
+            <div class="label">Kamera Tampilan</div>
+            <p>Klik + Drag untuk memutar · Scroll untuk zoom</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="control-section">
+            <div class="label">Navigasi Sensor</div>
+            <div class="key-row">
+                <span class="axis-label">Maju / Mundur</span>
+                <kbd id="key-w">W</kbd> <span>/</span> <kbd id="key-s">S</kbd>
+                <span style="color:rgba(255,255,255,0.25)">(Z)</span>
+            </div>
+            <div class="key-row">
+                <span class="axis-label">Kiri / Kanan</span>
+                <kbd id="key-a">A</kbd> <span>/</span> <kbd id="key-d">D</kbd>
+                <span style="color:rgba(255,255,255,0.25)">(X)</span>
+            </div>
+            <div class="key-row">
+                <span class="axis-label">Naik / Turun</span>
+                <kbd id="key-q">Q</kbd> <span>/</span> <kbd id="key-e">E</kbd>
+                <span style="color:rgba(255,255,255,0.25)">(Y)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Telemetry Panel (Right) -->
+    <div id="telemetry-panel" class="glass">
+        <h3>Telemetri Sensor</h3>
+
+        <div class="coord-display">
+            <div class="coord-box" id="coord-x">
+                <div class="axis x">X</div>
+                <div class="value" id="val-x">0.0</div>
+            </div>
+            <div class="coord-box" id="coord-y">
+                <div class="axis y">Y</div>
+                <div class="value" id="val-y">50.0</div>
+            </div>
+            <div class="coord-box" id="coord-z">
+                <div class="axis z">Z</div>
+                <div class="value" id="val-z">0.0</div>
+            </div>
+        </div>
+
+        <h3>Panjang Kabel</h3>
+        <div class="cable-list" id="cable-list">
+            <div class="cable-item">
+                <div class="cable-label"><span class="cable-dot"></span> Kabel 1</div>
+                <div><span class="cable-value" id="cable-1">0.00</span><span class="cable-unit">cm</span></div>
+            </div>
+            <div class="cable-item">
+                <div class="cable-label"><span class="cable-dot"></span> Kabel 2</div>
+                <div><span class="cable-value" id="cable-2">0.00</span><span class="cable-unit">cm</span></div>
+            </div>
+            <div class="cable-item">
+                <div class="cable-label"><span class="cable-dot"></span> Kabel 3</div>
+                <div><span class="cable-value" id="cable-3">0.00</span><span class="cable-unit">cm</span></div>
+            </div>
+            <div class="cable-item">
+                <div class="cable-label"><span class="cable-dot"></span> Kabel 4</div>
+                <div><span class="cable-value" id="cable-4">0.00</span><span class="cable-unit">cm</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar (Bottom Center) -->
+    <div id="status-bar" class="glass">
+        <div class="status-item"><div class="status-dot"></div> LIVE</div>
+        <div class="status-item" id="fps-display">FPS: 60</div>
+        <div class="status-item" id="speed-display">Speed: 1.5 u/f</div>
+    </div>
+
+    <!-- Mini-map -->
+    <div id="minimap" class="glass">
+        <canvas id="minimap-canvas" width="120" height="120"></canvas>
+        <div class="minimap-label">Top View</div>
+    </div>
+
+    <script src="spider_cam_3d.js"></script>
+</body>
+</html>
+
